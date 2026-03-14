@@ -1,8 +1,7 @@
 import motor.motor_asyncio
 from config import Config
 
-# --- MONGODB SETUP ---
-# It uses the MONGO_URL and DB_NAME from your config.py
+# --- MONGODB CONNECTION ---
 client = motor.motor_asyncio.AsyncIOMotorClient(Config.MONGO_URL)
 db = client["Pikachuu_Bot_DB"]
 
@@ -13,7 +12,7 @@ locks_db = db.locks
 warns_db = db.warns
 
 # ==========================================================
-# USER MANAGEMENT (For Stats & Broadcast)
+# 👤 USER MANAGEMENT & OWNER STATS
 # ==========================================================
 
 async def add_user(user_id, first_name):
@@ -25,15 +24,19 @@ async def add_user(user_id, first_name):
     )
 
 async def get_all_users():
-    """Returns a list of all unique user IDs."""
+    """Returns a list of all unique user IDs for broadcasting."""
     return [user["user_id"] async for user in users_db.find()]
 
+async def get_stats():
+    """Returns the total number of users in the database."""
+    return await users_db.count_documents({})
+
 # ==========================================================
-# WELCOME SYSTEM (Toggles & Custom Text)
+# 👋 WELCOME SYSTEM
 # ==========================================================
 
 async def set_welcome_status(chat_id, status: bool):
-    """Enables or disables welcome messages for a group."""
+    """Enables or disables welcome messages for a chat."""
     await welcome_db.update_one(
         {"chat_id": chat_id},
         {"$set": {"status": status}},
@@ -41,12 +44,12 @@ async def set_welcome_status(chat_id, status: bool):
     )
 
 async def get_welcome_status(chat_id):
-    """Checks if welcome messages are turned ON (default True)."""
+    """Checks if welcome is ON (True) or OFF (False)."""
     res = await welcome_db.find_one({"chat_id": chat_id})
     return res.get("status", True) if res else True
 
 async def set_welcome_message(chat_id, text):
-    """Saves the custom welcome text for a group."""
+    """Saves a custom welcome text for the group."""
     await welcome_db.update_one(
         {"chat_id": chat_id},
         {"$set": {"message": text}},
@@ -59,11 +62,11 @@ async def get_welcome_message(chat_id):
     return res.get("message") if res else None
 
 # ==========================================================
-# LOCK SYSTEM (Stickers, Links, etc.)
+# 🔒 LOCK SYSTEM
 # ==========================================================
 
 async def set_lock(chat_id, lock_type, status: bool):
-    """Sets a specific lock (e.g., 'sticker') to True or False."""
+    """Locks or unlocks a specific type (e.g., 'url', 'sticker')."""
     await locks_db.update_one(
         {"chat_id": chat_id},
         {"$set": {f"locks.{lock_type}": status}},
@@ -76,11 +79,11 @@ async def get_locks(chat_id):
     return res.get("locks", {}) if res else {}
 
 # ==========================================================
-# WARNING SYSTEM
+# ⚠️ WARNING SYSTEM
 # ==========================================================
 
 async def add_warn(chat_id, user_id):
-    """Increments the warning count for a user and returns the new total."""
+    """Increments warn count and returns the new total."""
     res = await warns_db.find_one_and_update(
         {"chat_id": chat_id, "user_id": user_id},
         {"$inc": {"count": 1}},
@@ -90,10 +93,10 @@ async def add_warn(chat_id, user_id):
     return res.get("count", 0)
 
 async def get_warns(chat_id, user_id):
-    """Checks how many warnings a user currently has."""
+    """Checks current warning count for a user."""
     res = await warns_db.find_one({"chat_id": chat_id, "user_id": user_id})
     return res.get("count", 0) if res else 0
 
 async def reset_warns(chat_id, user_id):
-    """Clears all warnings for a user."""
+    """Removes all warnings for a user in a specific chat."""
     await warns_db.delete_one({"chat_id": chat_id, "user_id": user_id})
