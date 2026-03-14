@@ -1,20 +1,17 @@
 import os
-from dotenv import load_dotenv
 
-# Load variables from a .env file if it exists (for local testing)
-load_dotenv()
+# Required configurations (loaded from environment variables)
+API_ID = int(os.getenv("API_ID", 0))
+API_HASH = os.getenv("API_HASH", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+MONGO_URI = os.getenv("MONGO_URI", "")
+DB_NAME = os.getenv("DB_NAME", "Cluster0")
 
-class Config:
-    # --- REQUIRED ---
-    API_ID = int(os.environ.get("API_ID", 0))
-    API_HASH = os.environ.get("API_HASH", None)
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", None)
-    MONGO_URL = os.environ.get("MONGO_URL", None)
+# Owner and bot details
+OWNER_ID = int(os.getenv("OWNER_ID", 0))
+BOT_USERNAME = os.getenv("BOT_USERNAME", "PikachuuX_Bot")
 
-    # --- CHANNELS & GROUPS ---
-    SUPPORT_GRP = "UhZo8ZsUECYyYWI1" # Your support link hash
-    UPDATE_CHNL = "pikachuu_updates"
-    
-    # --- BOT SETTINGS ---
-    BOT_NAME = "༒ ᴘɪᴋᴀᴄʜᴜᴜ ༒"
-    START_IMG = "https://telegra.ph/file/your_image_id.jpg" # Optional: Link to a logo
+# Links and visuals
+SUPPORT_GROUP = os.getenv("SUPPORT_GROUP", "https://t.me/+UhZo8ZsUECYyYWI1")
+UPDATE_CHANNEL = os.getenv("UPDATE_CHANNEL", "https://t.me/pikachuu_updates")
+START_IMAGE = os.getenv("START_IMAGE", "https://files.catbox.moe/bfalkz.jpg")
