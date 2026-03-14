@@ -1,102 +1,113 @@
+# ============================================================
+# Group Manager Bot - DB SYSTEM
+# ============================================================
+
 import motor.motor_asyncio
-from config import Config
+from config import MONGO_URI, DB_NAME  # Ensure these exist in config.py
+import logging
 
-# --- MONGODB CONNECTION ---
-client = motor.motor_asyncio.AsyncIOMotorClient(Config.MONGO_URL)
-db = client["Pikachuu_Bot_DB"]
+# setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(asctime)s - %(message)s'
+)
 
-# Collections
-users_db = db.users
-welcome_db = db.welcome
-locks_db = db.locks
-warns_db = db.warns
-
-# ==========================================================
-# 👤 USER MANAGEMENT & OWNER STATS
-# ==========================================================
-
-async def add_user(user_id, first_name):
-    """Adds a user to the database or updates their name."""
-    await users_db.update_one(
-        {"user_id": user_id}, 
-        {"$set": {"first_name": first_name}}, 
-        upsert=True
-    )
-
-async def get_all_users():
-    """Returns a list of all unique user IDs for broadcasting."""
-    return [user["user_id"] async for user in users_db.find()]
-
-async def get_stats():
-    """Returns the total number of users in the database."""
-    return await users_db.count_documents({})
+try:
+    client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
+    db = client[DB_NAME]
+    logging.info("✅ MongoDB connected successfully!")
+except Exception as e:
+    logging.error(f"❌ Failed to connect to MongoDB: {e}")
 
 # ==========================================================
-# 👋 WELCOME SYSTEM
+# 👋 WELCOME MESSAGE SYSTEM
 # ==========================================================
 
-async def set_welcome_status(chat_id, status: bool):
-    """Enables or disables welcome messages for a chat."""
-    await welcome_db.update_one(
-        {"chat_id": chat_id},
-        {"$set": {"status": status}},
-        upsert=True
-    )
-
-async def get_welcome_status(chat_id):
-    """Checks if welcome is ON (True) or OFF (False)."""
-    res = await welcome_db.find_one({"chat_id": chat_id})
-    return res.get("status", True) if res else True
-
-async def set_welcome_message(chat_id, text):
-    """Saves a custom welcome text for the group."""
-    await welcome_db.update_one(
+async def set_welcome_message(chat_id, text: str):
+    await db.welcome.update_one(
         {"chat_id": chat_id},
         {"$set": {"message": text}},
         upsert=True
     )
 
 async def get_welcome_message(chat_id):
-    """Retrieves the custom welcome text."""
-    res = await welcome_db.find_one({"chat_id": chat_id})
-    return res.get("message") if res else None
+    data = await db.welcome.find_one({"chat_id": chat_id})
+    return data.get("message") if data else None
+
+async def set_welcome_status(chat_id, status: bool):
+    await db.welcome.update_one(
+        {"chat_id": chat_id},
+        {"$set": {"enabled": status}},
+        upsert=True
+    )
+
+async def get_welcome_status(chat_id) -> bool:
+    data = await db.welcome.find_one({"chat_id": chat_id})
+    if not data:  
+        return True
+    return bool(data.get("enabled", True))
 
 # ==========================================================
 # 🔒 LOCK SYSTEM
 # ==========================================================
 
 async def set_lock(chat_id, lock_type, status: bool):
-    """Locks or unlocks a specific type (e.g., 'url', 'sticker')."""
-    await locks_db.update_one(
+    await db.locks.update_one(
         {"chat_id": chat_id},
         {"$set": {f"locks.{lock_type}": status}},
         upsert=True
     )
 
 async def get_locks(chat_id):
-    """Returns a dictionary of all active locks for a chat."""
-    res = await locks_db.find_one({"chat_id": chat_id})
-    return res.get("locks", {}) if res else {}
+    data = await db.locks.find_one({"chat_id": chat_id})
+    return data.get("locks", {}) if data else {}
 
 # ==========================================================
-# ⚠️ WARNING SYSTEM
+# ⚠️ WARN SYSTEM
 # ==========================================================
 
-async def add_warn(chat_id, user_id):
-    """Increments warn count and returns the new total."""
-    res = await warns_db.find_one_and_update(
+async def add_warn(chat_id: int, user_id: int) -> int:
+    data = await db.warns.find_one({"chat_id": chat_id, "user_id": user_id})
+    warns = data.get("count", 0) + 1 if data else 1
+
+    await db.warns.update_one(
         {"chat_id": chat_id, "user_id": user_id},
-        {"$inc": {"count": 1}},
-        upsert=True,
-        return_document=motor.motor_asyncio.ReturnDocument.AFTER
+        {"$set": {"count": warns}},
+        upsert=True
     )
-    return res.get("count", 0)
+    return warns
 
-async def get_warns(chat_id, user_id):
-    """Checks current warning count for a user."""
-    res = await warns_db.find_one({"chat_id": chat_id, "user_id": user_id})
-    return res.get("count", 0) if res else 0
+async def get_warns(chat_id: int, user_id: int) -> int:
+    data = await db.warns.find_one({"chat_id": chat_id, "user_id": user_id})
+    return data.get("count", 0) if data else 0
 
-async def reset_warns(chat_id, user_id):
-    """Removes all warnings for a user in a specific chat."""
-    await warns_db.delete_one({"chat_id": chat_id, "user_id": user_id})
+async def reset_warns(chat_id: int, user_id: int):
+    await db.warns.update_one(
+        {"chat_id": chat_id, "user_id": user_id},
+        {"$set": {"count": 0}},
+        upsert=True
+    )
+
+# ==========================================================
+# 👤 USER SYSTEM (Required for Stats & Broadcast)
+# ==========================================================
+
+async def add_user(user_id, first_name):
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"first_name": first_name}},
+        upsert=True
+    )
+
+async def get_all_users():
+    cursor = db.users.find({}, {"_id": 0, "user_id": 1})
+    users = []
+    async for document in cursor:
+        if "user_id" in document:
+            users.append(document["user_id"])
+    return users
+
+# ⚠️ ADD THIS: Needed for the /stats command
+async def get_stats():
+    """Returns the total number of users in the database."""
+    return await db.users.count_documents({})
