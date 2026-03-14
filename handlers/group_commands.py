@@ -1,135 +1,94 @@
-
 from pyrogram import Client, filters
-from pyrogram.types import Message, ChatMemberUpdated, ChatPermissions, ChatPrivileges
+from pyrogram.types import Message, ChatPermissions, ChatPrivileges
 from pyrogram.enums import ChatMemberStatus
+import db
 import logging
-import db  # Ensure your db.py has the functions used here
 
-DEFAULT_WELCOME = "👋 Welcome {first_name} to {title}!"
-
+# Setup Logging
 logger = logging.getLogger(__name__)
 
-# ==========================================================
-# POWER LOGIC (Admin Check)
-# ==========================================================
-async def is_power(client, chat_id: int, user_id: int) -> bool:
+# --- ʜᴇʟᴘᴇʀ ꜰᴜɴᴄᴛɪᴏɴs ---
+
+async def is_admin(client, chat_id, user_id):
     try:
         member = await client.get_chat_member(chat_id, user_id)
         return member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
-    except Exception:
+    except:
         return False
 
-async def extract_target_user(client, message):
+async def get_user_id(client, message):
     if message.reply_to_message:
-        return message.reply_to_message.from_user
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        return None
-    arg = parts[1]
-    try:
-        if arg.startswith("@"):
-            return await client.get_users(arg)
-        elif arg.isdigit():
-            return await client.get_users(int(arg))
-    except Exception:
-        return None
+        return message.reply_to_message.from_user.id
+    parts = message.text.split()
+    if len(parts) > 1:
+        user = parts[1]
+        if user.isdigit(): return int(user)
+        try:
+            user_obj = await client.get_users(user)
+            return user_obj.id
+        except: return None
     return None
 
-# ==========================================================
-# WELCOME SYSTEM
-# ==========================================================
-
-async def handle_welcome(client, chat_id: int, users: list, chat_title: str):
-    status = await db.get_welcome_status(chat_id)
-    if not status:
-        return
-    welcome_text = await db.get_welcome_message(chat_id) or DEFAULT_WELCOME
-    for user in users:
-        try:
-            text = welcome_text.format(
-                username=user.username or user.first_name,
-                first_name=user.first_name,
-                mention=user.mention,
-                title=chat_title,
-            )
-        except Exception:
-            text = DEFAULT_WELCOME.format(first_name=user.first_name, title=chat_title)
-        try:
-            await client.send_message(chat_id, text)
-        except Exception as e:
-            logger.error(f"🚨 Welcome error: {e}")
-
-@Client.on_message(filters.new_chat_members & filters.group)
-async def welcome_new_members(client, message: Message):
-    await handle_welcome(client, message.chat.id, message.new_chat_members, message.chat.title)
-
-@Client.on_message(filters.group & filters.command("welcome"))
-async def welcome_toggle(client, message: Message):
-    if not await is_power(client, message.chat.id, message.from_user.id):
-        return await message.reply_text("❌ Admin only.")
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2 or parts[1].lower() not in ["on", "off"]:
-        return await message.reply_text("⚙️ Usage: /welcome on/off")
-    status = parts[1].lower() == "on"
-    await db.set_welcome_status(message.chat.id, status)
-    await message.reply_text("✅ Welcome ON." if status else "⚠️ Welcome OFF.")
-
-# ==========================================================
-# LOCK SYSTEM
-# ==========================================================
-
-@Client.on_message(filters.group & filters.command(["lock", "unlock"]))
-async def lock_unlock_manager(client, message: Message):
-    if not await is_power(client, message.chat.id, message.from_user.id):
-        return await message.reply_text("❌ Admin only.")
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        return await message.reply_text("Usage: /lock <type>")
-    
-    lock_type = parts[1].lower()
-    is_locking = message.command[0] == "lock"
-    await db.set_lock(message.chat.id, lock_type, is_locking)
-    await message.reply_text(f"{'🔒' if is_locking else '🔓'} {lock_type.capitalize()} updated.")
-
-@Client.on_message(filters.group & ~filters.service, group=1)
-async def enforce_locks(client, message: Message):
-    if await is_power(client, message.chat.id, message.from_user.id):
-        return
-    locks = await db.get_locks(message.chat.id)
-    if not locks: return
-
-    # Simple logic check for URL/Sticker/Media
-    if locks.get("url") and ("t.me" in str(message.text) or message.entities):
-        await message.delete()
-    elif locks.get("sticker") and message.sticker:
-        await message.delete()
-    elif locks.get("media") and (message.photo or message.video):
-        await message.delete()
-
-# ==========================================================
-# MODERATION (Kick/Ban/Mute)
-# ==========================================================
+# --- ᴍᴏᴅᴇʀᴀᴛɪᴏɴ ᴄᴏᴍᴍᴀɴᴅs ---
 
 @Client.on_message(filters.group & filters.command("ban"))
-async def ban_command(client, message):
-    if not await is_power(client, message.chat.id, message.from_user.id): return
-    user = await extract_target_user(client, message)
-    if not user: return await message.reply_text("Who should I ban?")
-    await client.ban_chat_member(message.chat.id, user.id)
-    await message.reply_text(f"🚨 {user.mention} Banned.")
+async def ban_user(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    uid = await get_user_id(client, message)
+    if not uid: return await message.reply("⚠️ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ɪᴅ/ᴜsᴇʀɴᴀᴍᴇ.")
+    await client.ban_chat_member(message.chat.id, uid)
+    await message.reply("🚨 ᴜsᴇʀ ʙᴀɴɴᴇᴅ!")
+
+@Client.on_message(filters.group & filters.command("unban"))
+async def unban_user(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    uid = await get_user_id(client, message)
+    await client.unban_chat_member(message.chat.id, uid)
+    await message.reply("✅ ᴜsᴇʀ ᴜɴʙᴀɴɴᴇᴅ!")
 
 @Client.on_message(filters.group & filters.command("mute"))
-async def mute_command(client, message):
-    if not await is_power(client, message.chat.id, message.from_user.id): return
-    user = await extract_target_user(client, message)
-    if not user: return await message.reply_text("Who should I mute?")
-    await client.restrict_chat_member(message.chat.id, user.id, ChatPermissions(can_send_messages=False))
-    await message.reply_text(f"🔇 {user.mention} Muted.")
+async def mute_user(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    uid = await get_user_id(client, message)
+    await client.restrict_chat_member(message.chat.id, uid, ChatPermissions(can_send_messages=False))
+    await message.reply("🔇 ᴜsᴇʀ ᴍᴜᴛᴇᴅ!")
+
+@Client.on_message(filters.group & filters.command("unmute"))
+async def unmute_user(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    uid = await get_user_id(client, message)
+    await client.restrict_chat_member(message.chat.id, uid, ChatPermissions(
+        can_send_messages=True, can_send_media_messages=True, 
+        can_send_other_messages=True, can_add_web_page_previews=True))
+    await message.reply("🔊 ᴜsᴇʀ ᴜɴᴍᴜᴛᴇᴅ!")
 
 @Client.on_message(filters.group & filters.command("promote"))
-async def promote_command(client, message):
-    if not await is_power(client, message.chat.id, message.from_user.id): return
-    user = await extract_target_user(client, message)
-    if not user: return
-    await client.promote_chat_member(message.chat.id, user.id, ChatPrivileges(can_manage_chat=True, can_delete_messages=True))
-    await message.reply_text(f"✅ {user.mention} is now Admin.")
+async def promote_user(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    uid = await get_user_id(client, message)
+    await client.promote_chat_member(message.chat.id, uid, ChatPrivileges(
+        can_manage_chat=True, can_delete_messages=True, can_restrict_members=True,
+        can_invite_users=True, can_pin_messages=True, can_promote_members=True))
+    await message.reply("✅ ᴘʀᴏᴍᴏᴛᴇᴅ ᴛᴏ ᴀᴅᴍɪɴ!")
+
+# --- ʟᴏᴄᴋ sʏsᴛᴇᴍ ---
+
+@Client.on_message(filters.group & filters.command("lock"))
+async def lock_cmd(client, message):
+    if not await is_admin(client, message.chat.id, message.from_user.id): return
+    parts = message.text.split()
+    if len(parts) < 2: return await message.reply("⚙️ ᴜsᴀɢᴇ: /ʟᴏᴄᴋ <ᴜʀʟ|sᴛɪᴄᴋᴇʀ|ᴍᴇᴅɪᴀ>")
+    ltype = parts[1].lower()
+    await db.set_lock(message.chat.id, ltype, True)
+    await message.reply(f"🔒 {ltype.capitalize()} ʟᴏᴄᴋᴇᴅ.")
+
+@Client.on_message(filters.group & ~filters.service, group=1)
+async def enforce_locks(client, message):
+    if await is_admin(client, message.chat.id, message.from_user.id): return
+    locks = await db.get_locks(message.chat.id)
+    if locks.get("url") and message.entities:
+        for entity in message.entities:
+            if entity.type in ["url", "text_link"]:
+                await message.delete()
+                return
+    if locks.get("sticker") and message.sticker: await message.delete()
