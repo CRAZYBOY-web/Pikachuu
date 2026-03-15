@@ -1,12 +1,8 @@
-# ============================================================
-# Group Manager Bot - DB SYSTEM
-# ============================================================
-
 import motor.motor_asyncio
-from config import MONGO_URI, DB_NAME  # Ensure these exist in config.py
+from config import MONGO_URI, DB_NAME
 import logging
 
-# setup logging
+# sᴇᴛᴜᴘ ʟᴏɢɢɪɴɢ
 logging.basicConfig(
     level=logging.INFO,
     format='[%(levelname)s] %(asctime)s - %(message)s'
@@ -15,12 +11,12 @@ logging.basicConfig(
 try:
     client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
     db = client[DB_NAME]
-    logging.info("✅ MongoDB connected successfully!")
+    logging.info("✅ ᴍᴏɴɢᴏᴅʙ ᴄᴏɴɴᴇᴄᴛᴇᴅ sᴜᴄᴄᴇssꜰᴜʟʟʏ!")
 except Exception as e:
-    logging.error(f"❌ Failed to connect to MongoDB: {e}")
+    logging.error(f"❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ᴄᴏɴɴᴇᴄᴛ ᴛᴏ ᴍᴏɴɢᴏᴅʙ: {e}")
 
 # ==========================================================
-# 👋 WELCOME MESSAGE SYSTEM
+# 👋 ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ sʏsᴛᴇᴍ
 # ==========================================================
 
 async def set_welcome_message(chat_id, text: str):
@@ -43,12 +39,12 @@ async def set_welcome_status(chat_id, status: bool):
 
 async def get_welcome_status(chat_id) -> bool:
     data = await db.welcome.find_one({"chat_id": chat_id})
-    if not data:  
+    if not data:  # Default is ON
         return True
     return bool(data.get("enabled", True))
 
 # ==========================================================
-# 🔒 LOCK SYSTEM
+# 🔒 ʟᴏᴄᴋ sʏsᴛᴇᴍ
 # ==========================================================
 
 async def set_lock(chat_id, lock_type, status: bool):
@@ -63,7 +59,7 @@ async def get_locks(chat_id):
     return data.get("locks", {}) if data else {}
 
 # ==========================================================
-# ⚠️ WARN SYSTEM
+# ⚠️ ᴡᴀʀɴ sʏsᴛᴇᴍ
 # ==========================================================
 
 async def add_warn(chat_id: int, user_id: int) -> int:
@@ -89,7 +85,7 @@ async def reset_warns(chat_id: int, user_id: int):
     )
 
 # ==========================================================
-# 👤 USER SYSTEM (Required for Stats & Broadcast)
+# 👤 ᴜsᴇʀ sʏsᴛᴇᴍ & sᴛᴀᴛs
 # ==========================================================
 
 async def add_user(user_id, first_name):
@@ -107,7 +103,15 @@ async def get_all_users():
             users.append(document["user_id"])
     return users
 
-# ⚠️ ADD THIS: Needed for the /stats command
 async def get_stats():
-    """Returns the total number of users in the database."""
+    """Returns total user count for the /stats command"""
     return await db.users.count_documents({})
+
+# ==========================================================
+# 🧹 ᴄʟᴇᴀɴᴜᴘ ᴜᴛɪʟs
+# ==========================================================
+
+async def clear_group_data(chat_id: int):
+    await db.welcome.delete_one({"chat_id": chat_id})
+    await db.locks.delete_one({"chat_id": chat_id})
+    await db.warns.delete_many({"chat_id": chat_id})
