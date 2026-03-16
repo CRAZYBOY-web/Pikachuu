@@ -1,0 +1,30 @@
+# Python Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environments & Virtual Envs
+venv/
+env/
+.venv/
+ENV/
+
+# Secrets & Configuration
+.env
+config.py
+session.db
+session.db-journal
+
+# System Files
+.DS_Store
+Thumbs.db
+*.log
+
+# Browser/Automation Profiles
+chrome_profile/
+.chrome/
+
+# IDE Folders
+.vscode/
+.idea/
