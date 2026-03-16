@@ -1,21 +1,22 @@
+
 from pyrogram import Client
 from config import API_ID, API_HASH, BOT_TOKEN
 import logging
 
-# ᴇɴᴀʙʟᴇ ʟᴏɢɢɪɴɢ
+# Enable logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format='%(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# ɪɴɪᴛɪᴀʟɪᴢᴇ ᴛʜᴇ ʙᴏᴛ ᴡɪᴛʜ ᴘʟᴜɢɪɴs
+# Initialize the Client with the Plugins folder
 app = Client(
     "pikachu_bot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    plugins=dict(root="handlers") # ᴛʜɪs ᴀᴜᴛᴏ-ʟᴏᴀᴅs ᴇᴠᴇʀʏᴛʜɪɴɢ ɪɴ ᴛʜᴇ ʜᴀɴᴅʟᴇʀs ꜰᴏʟᴅᴇʀ
+    plugins=dict(root="handlers") # This automatically loads everything in the handlers folder
 )
 
 if __name__ == "__main__":
