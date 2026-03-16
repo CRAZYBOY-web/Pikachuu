@@ -1,24 +1,24 @@
-
-from pyrogram import Client
+from pyrogram import Client, idle
 from config import API_ID, API_HASH, BOT_TOKEN
 import logging
+import asyncio
 
-# Enable logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-# Initialize the Client with the Plugins folder
 app = Client(
     "pikachu_bot",
     api_id=API_ID,
     api_hash=API_HASH,
     bot_token=BOT_TOKEN,
-    plugins=dict(root="handlers") # This automatically loads everything in the handlers folder
+    plugins=dict(root="handlers")
 )
 
+async def start_bot():
+    await app.start()
+    print("⚡️ ༒ ᴘɪᴋᴀᴄʜᴜᴜ ༒ ɪs ʟɪᴠᴇ!")
+    await idle()
+    await app.stop()
+
 if __name__ == "__main__":
-    print("⚡️ ༒ ᴘɪᴋᴀᴄʜᴜᴜ ༒ ɪs sᴛᴀʀᴛɪɴɢ... ")
-    app.run()
+    asyncio.get_event_loop().run_until_complete(start_bot())
+    
