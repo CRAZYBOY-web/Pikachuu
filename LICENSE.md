@@ -19,9 +19,6 @@ This project is **open-source**, but usage is governed by the following rules to
 - **ᴄᴏᴍᴍᴇʀᴄɪᴀʟɪᴢᴀᴛɪᴏɴ:** You may **not sell, rent, or redistribute** this code or any modified version for profit.  
 - **ᴘʟᴀɢɪᴀʀɪsᴍ:** You may **not claim ownership** or re-upload the project under a different name without explicit written permission from the original author.
 
-### ⚠️ ᴄᴏᴍᴍᴇʀᴄɪᴀʟ ᴜsᴇ
-If you want to use this bot or code commercially, you **must contact the original author** and obtain written permission via [@LearningBotsOfficial](https://t.me/LearningBotsOfficial).
-
 ---
 
 *By using this project, you agree to comply with these terms. Respect the code, keep the credits.*
