@@ -1,4 +1,9 @@
-import logging
 
-# This will show in your terminal logs when the bot starts
-logging.info("ʟᴏᴀᴅɪɴɢ ᴘɪᴋᴀᴄʜᴜᴜ ʜᴀɴᴅʟᴇʀs...")
+
+from .start import register_handlers
+from .group_commands import register_group_commands
+
+def register_all_handlers(app):
+    register_handlers(app)
+    register_group_commands(app)
+    print("✅ Group commands registered!")
